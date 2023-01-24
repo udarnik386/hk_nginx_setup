@@ -1,0 +1,9 @@
+---
+hk_nginx_user: nginx
+hk_nginx_connections: 1024
+hk_nginx_gzip: false
+hk_nginx_directory: /etc/nginx
+hk_nginx_confd: "{{ hk_nginx_directory }}/conf.d"
+hk_nginx_ssl_directory: "{{ hk_nginx_directory }}/ssl"
+hk_nginx_log_directory: /var/log/nginx
+hk_nginx_default_server_config: true

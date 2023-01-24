@@ -1,0 +1,76 @@
+---
+- name: Setup nginx package
+  yum:
+    name: nginx
+    state: present
+
+- name: Check nginx directories
+  file:
+    path: "{{ item.path }}"
+    owner: "{{ item.owner }}"
+    group: "{{ item.group }}"
+    mode: "{{ item.mode }}"
+    state: directory
+  loop:
+    - { path: "{{ hk_nginx_log_directory }}", owner: nginx, group: nginx, mode: '0755' }
+    - { path: "{{ hk_nginx_ssl_directory }}", owner: root, group: root, mode: '0700' }
+    - { path: "{{ hk_nginx_directory }}", owner: root, group: root, mode: '0755' }
+    - { path: "{{ hk_nginx_confd }}", owner: root, group: root, mode: '0755' }
+
+- name: Setting up nginx.conf
+  template:
+    src: nginx.conf.j2
+    dest: "{{ hk_nginx_directory }}/nginx.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: nginx reload
+
+- name: Setting up default.conf
+  copy:
+    src: default.conf
+    dest: "{{ hk_nginx_directory }}/conf.d/default.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  notify: nginx reload
+  when:
+    - hk_nginx_server is undefined
+    - hk_nginx_default_server_config
+
+- name: Delete default web-server
+  file:
+    path: "{{ hk_nginx_directory }}/conf.d/default.conf"
+    owner: root
+    group: root
+    mode: '0644'
+    state: absent
+  notify: nginx reload
+  when: not hk_nginx_default_server_config
+
+- name: Setting up http web-server configuration
+  template:
+    src: nginx_service.conf.j2
+    dest: "{{ hk_nginx_directory }}/conf.d/{{ item.name }}.conf"
+    owner: root
+    group: root
+    mode: '0644'
+  loop: "{{ hk_nginx_server }}"
+  notify: nginx reload
+  when: hk_nginx_server is defined
+
+- block:
+  - name: Get ssl files names needed
+    shell: "grep -Po 'ssl_certificate .*$|ssl_certificate_key .*$' {{ hk_nginx_directory }}/conf.d/* | cut -d' ' -f2 | sed 's/;//'"
+    ignore_errors: yes
+    changed_when: false
+    register: ssl_files
+
+  - name: Check ssl files
+    shell: "ls {{ item }}"
+    ignore_errors: true
+    changed_when: false
+    loop: "{{ ssl_files.stdout_lines }}"
+    when: ssl_files.stdout_lines|length != '0' 
+
+  tags: check_ssl_certificates

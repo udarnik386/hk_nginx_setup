@@ -1,0 +1,54 @@
+# For more information on configuration, see:
+#   * Official English Documentation: http://nginx.org/en/docs/
+#   * Official Russian Documentation: http://nginx.org/ru/docs/
+
+user {{ hk_nginx_user }};
+worker_processes auto;
+error_log {{ hk_nginx_log_directory }}/error.log;
+pid /run/nginx.pid;
+
+# Load dynamic modules. See /usr/share/doc/nginx/README.dynamic.
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections {{ hk_nginx_connections }};
+}
+
+http {
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$uri" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  {{ hk_nginx_log_directory }}/access.log  main;
+
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 2048;
+    server_tokens       off;
+
+{% if hk_nginx_http_generics is defined %}
+    # Generic parameters
+{% for parameter in hk_nginx_http_generics %}
+    {{ hk_nginx_http_generics[parameter].name }} {{ hk_nginx_http_generics[parameter].value }};
+{% endfor %}
+
+{% endif %}
+{% if hk_nginx_gzip %}
+    # GZIP compression
+    gzip on;
+    gzip_min_length 10240;
+    gzip_proxied expired no-cache no-store private auth;
+    gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml;
+    gzip_disable "msie6";
+
+{% endif %}
+    include             /etc/nginx/mime.types;
+    default_type        application/octet-stream;
+
+    # Load modular configuration files from the /etc/nginx/conf.d directory.
+    # See http://nginx.org/en/docs/ngx_core_module.html#include
+    # for more information.
+    include /etc/nginx/conf.d/*.conf;
+}

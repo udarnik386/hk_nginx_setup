@@ -1,0 +1,165 @@
+server {
+{# ---------------- #}
+{#  SERVER CONTEXT  #}
+{# ---------------- #}
+{% if item.listen_params is defined and item.ssl %}
+	listen {{ item.listen }} ssl {{ item.listen_params }};
+{% elif item.listen_params is not defined and item.ssl %}
+	listen {{ item.listen }} ssl;
+{% elif item.listen_params is defined and not item.ssl %}
+	listen {{ item.listen }} {{ item.listen_params }};
+{% else %}
+	listen {{ item.listen }};
+{% endif %}
+	server_name {{ item.server_name }};
+{% if item.http2https is defined and item.http2https %}
+
+	location / {
+		return 301 https://$server_name$request_uri;
+	}
+
+{% endif %}
+{% if item.robotsdisallow is defined and item.robotsdisallow %}
+
+	location = /robots.txt {
+		add_header Content-Type text/plain;
+		return 200 "User-agent: *\nDisallow: /\n";
+	}
+
+{% endif %}
+{# ------------------- #}
+{#  SSL CONFIGURATION  #}
+{# ------------------- #}
+{% if item.ssl %}
+
+	ssl_certificate {{ item.ssl_required.certificate }};
+	ssl_certificate_key {{ item.ssl_required.certificate_key }};
+
+{% if item.ssl_optional is defined %}
+{% for parameter in item.ssl_optional %}
+	{{ item.ssl_optional[parameter].name }} {{ item.ssl_optional[parameter].value }};
+{% endfor %}
+{% endif %}
+{% endif %}
+{# ------------ #}
+{#  SERVER STD  #}
+{# ------------ #}
+{% if item.root is defined %}
+
+	root {{ item.root }};
+
+{% endif %}
+{% if item.index is defined %}
+
+	index {{ item.index }};
+
+{% endif %}
+{# ---------------- #}
+{#  SERVER GENERIC  #}
+{# ---------------- #}
+{% if item.generics is defined %}
+
+{% for generic in item.generics %}
+	{{ item.generics[generic].name }} {{ item.generics[generic].value }};
+{% endfor %}
+
+{% endif %}
+{% if item.generics_if is defined %}
+
+{% for generic_if in item.generics_if %}
+	if ( {{ item.generics_if[generic_if].condition }} ) {
+		{{ item.generics_if[generic_if].name }} {{ item.generics_if[generic_if].value }};
+	}
+{% endfor %}
+
+{% endif %}
+{# ------------- #}
+{#  SERVER LOGS  #}
+{# ------------- #}
+{% if item.access_log is defined %}
+
+{% if not item.access_log %}
+	access_log off;
+{% else %}
+	access_log {{ hk_nginx_log_directory }}/{{ item.name }}-access.log main;
+{% endif %}
+{% endif %}
+{% if item.error_log is defined %}
+{% if not item.error_log %}
+	error_log off;
+{% else %}
+	error_log {{ hk_nginx_log_directory }}/{{ item.name }}-error.log;
+{% endif %}
+
+{% endif %}
+{# ------------------ #}
+{#  LOCATION CONTEXT  #}
+{# ------------------ #}
+{% if item.locations is defined %}
+{% for location in item.locations %}
+
+	location {{ item.locations[location].path }} {
+{# --------------- #}
+{#  LOCATION-LOGS  #}
+{# --------------- #}
+{% if item.locations[location].access_log is defined %}
+{% if not item.locations[location].access_log %}
+		access_log off;
+{% else %}
+		access_log {{ hk_nginx_log_directory }}/{{ item.name }}-{{ item.locations[location].name }}-access.log;
+{% endif %}
+{% endif %}
+{% if item.locations[location].error_log is defined %}
+{% if not item.locations[location].error_log %}
+		error_log off;
+{% else %}
+		error_log {{ hk_nginx_log_directory }}/{{ item.name }}-{{ item.locations[location].name }}-error.log;
+{% endif %}
+{% endif %}
+{# -------------- #}
+{#  LOCATION-STD  #}
+{# -------------- #}
+{% if item.locations[location].alias is defined %}
+		alias {{ item.locations[location].alias }};
+{% endif %}
+{% if item.locations[location].root is defined %}
+		root {{ item.locations[location].root }};
+{% endif %}
+{% if item.locations[location].standart_proxy_headers is defined and item.locations[location].standart_proxy_headers %}
+		proxy_set_header X-Forwarded-Host $host;
+		proxy_set_header X-Forwarded-Server $host;
+		proxy_set_header X-Real-IP $remote_addr;
+		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+{% endif %}
+{% if item.locations[location].standart_websocket is defined and item.locations[location].standart_websocket %}
+		proxy_http_version 1.1;
+		proxy_set_header Upgrade $http_upgrade;
+		proxy_set_header Connection "Upgrade";
+{% endif %}
+{% if item.locations[location].standart_fastcgi is defined and item.locations[location].standart_fastcgi %}
+		include fastcgi.conf;
+		fastcgi_index index.php;
+		fastcgi_pass {{ item.locations[location].fastcgi_pass }};
+{% endif %}
+{% if item.locations[location].proxy_pass is defined %}
+		proxy_pass {{ item.locations[location].proxy_pass }};
+{% endif %}
+{# ------------------ #}
+{#  LOCATION-GENERIC  #}
+{# ------------------ #}
+{% if item.locations[location].generics_if is defined %}
+{% for generic_if in item.locations[location].generics_if %}
+		if ( {{ item.locations[location].generics_if[generic_if].condition }} ) {
+			{{ item.locations[location].generics_if[generic_if].name }} {{ item.locations[location].generics_if[generic_if].value }};
+		}
+{% endfor %}
+{% endif %}
+{% if item.locations[location].generics is defined %}
+{% for generic in item.locations[location].generics %}
+		{{ item.locations[location].generics[generic].name }} {{ item.locations[location].generics[generic].value }};
+{% endfor %}
+{% endif %}
+	}
+{% endfor %}
+{% endif %}
+}

@@ -1,0 +1,17 @@
+galaxy_info:
+  author: Egor Garadja
+  description: A role for nginx web-server configuration
+  company: Hostkey LLC
+
+  license: license MIT
+
+  min_ansible_version: 2.4
+
+  platforms:
+  - name: Centos
+    versions:
+    - 7
+
+  galaxy_tags: []
+
+  dependencies: []
